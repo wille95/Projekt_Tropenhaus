@@ -9,19 +9,12 @@ from machine import Pin, SPI, SoftI2C, ADC      # Pin EIn-/Ausgäng, Busssystem 
 from HTU2X import HTU21D
 from time import sleep
 import json
-import _thread
 
 MQTT_SERVER= "192.168.178.21"
 CLIENT_ID= "Wille"
 MQTT_TOPIC = "Tropenhaus/Sensordaten"
-
-# Heimnetzwerk
 SSID = "FRITZ!Box 7590 JI"
 PASSWORT ="170911200695071094"
-
-# Schulnetzwerk
-#SSID = "BZTG-IoT"
-#PASSWORT ="WerderBremen24"
 
 wlan = network.WLAN(network.STA_IF)     #objekt wlan als interface
 wlan.active(True)                       #system einschalten
@@ -54,17 +47,20 @@ matrix.brightness(2)
 
 def alarm():
     matrix.fill(0)
-    matrix.text(("STOP"),0,0,1)
+    matrix.text(("Water"),0,0,1)
     matrix.show()
 
 def ausgabe_Anzeige_Temp_Luft():
+    matrix.fill(0)
+    matrix.text((ausgabe_temperatur+" C"),0,0,1)
+    matrix.fill_rect(21,0,2,2,1)
+    matrix.show()
+    sleep(2)
+    matrix.fill(0)
+    matrix.text((ausgabe_luftfeuchte+"%"),0,0,1)
+    matrix.show()
+    sleep(2)            # time anstatt sleep!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    for i in range (-90,38):
-        matrix.fill(0)
-        matrix.text((ausgabe_temperatur+"Grad"+ausgabe_luftfeuchte +"%"),0,0,1)
-        matrix.show()
-        sleep(0.25)
-        
 def grenzwerte_Temp_Luft():
     if temperatur < 25 or luftfeuchte < 60: 
         led_Temp_Red.value(1)
@@ -74,7 +70,7 @@ def grenzwerte_Temp_Luft():
         led_Temp_Green.value(1)
 
 def wasserstand():
-    if water_value > 500:
+    if water_value < 500:
         alarm()
         led_water_empty_red.value(1)
         led_water_good_green.value(0)
@@ -103,9 +99,10 @@ while True:
     grenzwerte_Temp_Luft()
    
     water_value = analog_Pin.read()   # Analogwert auslesen
-    print(water_value)                # Analogwer ausgeben
-    print(temperatur)
-    print(luftfeuchte)
+    ausgabe_fuellstand = str(water_value)
+    print("Wasserstand: {0}" .format(water_value))                
+    print("Temperatur: {0} Grad Celcius" .format(temperatur))
+    print("Luftfeuchtigkeit: {0} Prozent" .format(luftfeuchte))
 
     wasserstand()
 
@@ -113,14 +110,13 @@ while True:
         "Daten" :[
             {   
                 "Temperatur": ausgabe_temperatur,
-                "Luftfeuchte": ausgabe_luftfeuchte
+                "Luftfeuchte": ausgabe_luftfeuchte,
+                "Fuellstand": ausgabe_fuellstand
             }
         ]    
     }
 
     mqttwille.publish(MQTT_TOPIC,json.dumps(daten_Sensorwerte))
 
-    sleep(0.5)
+    sleep(1)
     mqttwille.disconnect()
-
-    
